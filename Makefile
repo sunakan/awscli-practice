@@ -48,13 +48,18 @@ iam-roles: profiles
 	$(call profiles) | xargs -I {profile} bash -c "echo ===[{profile}] && $(call iam-roles,{profile})"
 
 ################################################################################
+# AWSサービス region一覧
+################################################################################
+# $(1)：サービス名
+define service-regions
+	cat ${SERVICE_REGIONS_PATH}/$(1)-regions
+endef
+
+################################################################################
 # EC2 region一覧（テキストに吐き出す（もし不要な部分があれば、自分で削っていく））
 ################################################################################
-define ec2-regions
-	cat ${SERVICE_REGIONS_PATH}/ec2-regions
-endef
 ec2-regions: profiles
-	$(call ec2-regions) \
+	$(call service-regions,ec2) \
 		|| ( \
 			aws ec2 describe-regions --query 'Regions[*].RegionName[]' \
 				| jq --raw-output '.[]' > ${SERVICE_REGIONS_PATH}/ec2-regions.all \
@@ -108,12 +113,77 @@ ec2-list: profiles ec2-regions
 ################################################################################
 # $(1)：profile名
 define s3-list
-	export AWS_PAGER="" \
+	export AWS_PAGER='' \
 		&& aws s3 ls --profile $(1)
 endef
 .PHONY: s3-list
 s3-list: profiles
 	$(call profiles) | xargs -I {profile} bash -c "echo ===[{profile}] && $(call s3-list,{profile})"
+
+################################################################################
+# RDS region一覧
+################################################################################
+rds-regions:
+	$(call service-regions,rds) || cp ${SERVICE_REGIONS_PATH}/rds-regions.all ${SERVICE_REGIONS_PATH}/rds-regions
+
+################################################################################
+# RDS 一覧
+################################################################################
+# $(1)：profile名
+# $(2)：region名
+define rds-list
+	export AWS_PAGER='' \
+		&& aws rds describe-db-instances --query 'DBInstances[].{DBInstanceIdentifier: DBInstanceIdentifier, Engine: Engine, EngineVersion: EngineVersion, MultiAZ: MultiAZ}' --profile $(1) --region $(2) \
+			| jq --raw-output --compact-output '.[]'
+endef
+.PHONY: rds-list
+rds-list: profiles rds-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,rds) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call rds-list,{profile},{region})\""
+
+################################################################################
+# Route53 一覧
+################################################################################
+# $(1)：profile名
+define route53-list
+	export AWS_PAGER='' \
+		&& aws route53 list-hosted-zones --query 'HostedZones[].Name' --profile $(1) \
+			| jq --raw-output --compact-output '.'
+endef
+route53-list: profiles
+	$(call profiles) | xargs -I {profile} bash -c "echo ===[{profile}] && $(call route53-list,{profile})"
+
+################################################################################
+# LB 一覧
+################################################################################
+
+################################################################################
+# Lambda 一覧
+################################################################################
+
+################################################################################
+# SQS 一覧
+################################################################################
+
+################################################################################
+# SES 一覧
+################################################################################
+
+################################################################################
+# CloudWatch 一覧
+################################################################################
+
+################################################################################
+# KMS 一覧
+################################################################################
+
+################################################################################
+# SSH key 一覧
+################################################################################
+
+################################################################################
+# Cost Explorer 一覧
+################################################################################
+
 
 .PHONY: clean
 clean:
