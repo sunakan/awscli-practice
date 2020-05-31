@@ -1,5 +1,6 @@
 .aws
 profiles
+service-regions/*-regions
 
 # Created by https://www.gitignore.io/api/vim,linux,macos,emacs,windows
 # Edit at https://www.gitignore.io/?templates=vim,linux,macos,emacs,windows

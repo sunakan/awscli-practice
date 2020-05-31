@@ -1,6 +1,54 @@
-== AWS CLI Tips
+= AWS CLI Tips
+
+==== 挙動確認したソフトウェアのバージョン（完全に合わせる必要はない）
 
 ----
+$ make --version
+GNU Make 4.1
+...
 $ aws --version
 aws-cli/2.0.17 Python/3.7.3 Linux/4.15.0-91-generic botocore/2.0.0dev21
+$ jq --version
+jq-1.5-1-a5b5cbe
+----
+
+== コピペして使いたい時１（例：iam-users）
+
+* define iam-usersのawsから--profile $(1)までをコピーして$(1)をdefaultにする
+
+.例
+----
+$ aws iam list-users --query "Users[].UserName" --profile default
+----
+
+== コピペして使いたい時２（例：vpc-list）
+
+* define vpc-listのawsから--region $(2)までをコピーして$(1)をdefault、$(2)をap-northeast-1にする
+
+.例
+----
+$ aws ec2 describe-vpcs --query 'Vpcs[].{CidrBlock: CidrBlock, Tags: Tags[0]}' --profile default --region ap-northeast-1
+----
+
+== コマンドで素の結果を見たい時
+
+* --queryオプションを外す
+
+.例
+----
+$ aws iam list-users --profile default
+----
+
+== もしリージョンがあるサービスで、特定のリージョン（東京のみ等）だけにしたい場合
+
+* services/SERVICE-regionsを編集して実行
+
+.services/ec2-regions
+----
+ap-northeast-1
+----
+
+.例
+----
+$ make vpc-list
 ----
