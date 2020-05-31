@@ -103,6 +103,18 @@ endef
 ec2-list: profiles ec2-regions
 	$(call profiles) | xargs -I {profile} bash -c "$(call ec2-regions) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call ec2-list,{profile},{region})\""
 
+################################################################################
+# S3 一覧
+################################################################################
+# $(1)：profile名
+define s3-list
+	export AWS_PAGER="" \
+		&& aws s3 ls --profile $(1)
+endef
+.PHONY: s3-list
+s3-list: profiles
+	$(call profiles) | xargs -I {profile} bash -c "echo ===[{profile}] && $(call s3-list,{profile})"
+
 .PHONY: clean
 clean:
 	rm service-regions/*-regions
