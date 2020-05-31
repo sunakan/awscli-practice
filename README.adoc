@@ -12,7 +12,61 @@ $ jq --version
 jq-1.5-1-a5b5cbe
 ----
 
-== コピペして使いたい時１（例：iam-users）
+==== 前提
+
+* aws configure等で、.aws/credentialsのdefaultが既に定義されている
+
+==== 実行方法
+
+.AWSアカウントの疎通確認実行例
+----
+$ make check
+----
+
+==== Roleを複数用意している時の.aws/credentialsの例（AWSマルチアカウントの時、便利）
+
+* 3つのroleで実行したい時（デフォルトはシングルアカウントを想定）
+
+.aws/credentials
+----
+[default]
+aws_access_key_id = ******
+aws_secret_access_key = ******
+[role-a]
+role_arn = arn:aws:iam::*******:role/role-a
+source_profile = default
+[role-b]
+role_arn = arn:aws:iam::*******:role/role-b
+source_profile = default
+[role-c]
+role_arn = arn:aws:iam::*******:role/role-c
+source_profile = default
+----
+
+.aws/config
+----
+[default]
+region = ap-northeast-1
+output = json
+[profile role-a]
+region = ap-northeast-1
+output = json
+[profile role-b]
+region = ap-northeast-1
+output = json
+[profile role-c]
+region = ap-northeast-1
+output = json
+----
+
+./profile
+----
+role-a
+role-b
+role-c
+----
+
+==== コピペして使いたい時１（例：iam-users）
 
 * define iam-usersのawsから--profile $(1)までをコピーして$(1)をdefaultにする
 
@@ -21,7 +75,7 @@ jq-1.5-1-a5b5cbe
 $ aws iam list-users --query "Users[].UserName" --profile default
 ----
 
-== コピペして使いたい時２（例：vpc-list）
+==== コピペして使いたい時２（例：vpc-list）
 
 * define vpc-listのawsから--region $(2)までをコピーして$(1)をdefault、$(2)をap-northeast-1にする
 
@@ -30,7 +84,7 @@ $ aws iam list-users --query "Users[].UserName" --profile default
 $ aws ec2 describe-vpcs --query 'Vpcs[].{CidrBlock: CidrBlock, Tags: Tags[0]}' --profile default --region ap-northeast-1
 ----
 
-== コマンドで素の結果を見たい時
+==== コマンドで素の結果を見たい時
 
 * --queryオプションを外す
 
@@ -39,7 +93,7 @@ $ aws ec2 describe-vpcs --query 'Vpcs[].{CidrBlock: CidrBlock, Tags: Tags[0]}' -
 $ aws iam list-users --profile default
 ----
 
-== もしリージョンがあるサービスで、特定のリージョン（東京のみ等）だけにしたい場合
+==== もしリージョンがあるサービスで、特定のリージョン（東京のみ等）だけにしたい場合
 
 * services/SERVICE-regionsを編集して実行
 
