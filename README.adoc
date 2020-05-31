@@ -1,0 +1,6 @@
+== AWS CLI Tips
+
+----
+$ aws --version
+aws-cli/2.0.17 Python/3.7.3 Linux/4.15.0-91-generic botocore/2.0.0dev21
+----
