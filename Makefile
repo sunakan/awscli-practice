@@ -4,7 +4,7 @@ SERVICE_REGIONS_PATH := ${PWD}/service-regions
 # aws コマンドで --profile PROFILE で利用する一覧表示（ないならdefaultが入る）
 ################################################################################
 define profiles
-	cat profiles
+	cat profiles | grep --invert-match '#'
 endef
 .PHONY: profiles
 profiles:
@@ -52,7 +52,7 @@ iam-roles: profiles
 ################################################################################
 # $(1)：サービス名
 define service-regions
-	cat ${SERVICE_REGIONS_PATH}/$(1)-regions
+	cat ${SERVICE_REGIONS_PATH}/$(1)-regions | grep --invert-match '#'
 endef
 
 ################################################################################
@@ -153,8 +153,23 @@ route53-list: profiles
 	$(call profiles) | xargs -I {profile} bash -c "echo ===[{profile}] && $(call route53-list,{profile})"
 
 ################################################################################
+# LB region一覧
+################################################################################
+lb-regions:
+	$(call service-regions,lb) || cp ${SERVICE_REGIONS_PATH}/lb-regions.all ${SERVICE_REGIONS_PATH}/lb-regions
+
+################################################################################
 # LB 一覧
 ################################################################################
+# $(1)：profile名
+# $(2)：region名
+define lb-list
+	export AWS_PAGER='' \
+		&& aws elbv2 describe-load-balancers --query 'LoadBalancers[].{Name: LoadBalancerName, Type: Type, Scheme: Scheme, SubnetIds: [AvailabilityZones[].SubnetId]}' --profile $(1) --region $(2) \
+			| jq --raw-output --compact-output '.[]'
+endef
+lb-list: profiles lb-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,lb) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call lb-list,{profile},{region})\""
 
 ################################################################################
 # Lambda 一覧
@@ -169,8 +184,23 @@ route53-list: profiles
 ################################################################################
 
 ################################################################################
-# CloudWatch 一覧
+# Logs region一覧
 ################################################################################
+log-regions:
+	$(call service-regions,logs) || cp ${SERVICE_REGIONS_PATH}/logs-regions.all ${SERVICE_REGIONS_PATH}/logs-regions
+
+################################################################################
+# Logs group一覧
+################################################################################
+# $(1)：profile名
+# $(2)：region名
+define log-groups
+	export AWS_PAGER='' \
+		&& aws logs describe-log-groups --query 'logGroups[].{Name: logGroupName, metricFilterCount: metricFilterCount, storedBytes: storedBytes}' --profile $(1) --region $(2) \
+			| jq --raw-output --compact-output '.[]'
+endef
+log-groups: profiles log-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,logs) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call log-groups,{profile},{region})\""
 
 ################################################################################
 # KMS 一覧
