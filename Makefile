@@ -78,7 +78,7 @@ define vpc-list
 endef
 .PHONY: vpc-list
 vpc-list: profiles ec2-regions
-	$(call profiles) | xargs -I {profile} bash -c "$(call ec2-regions) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call vpc-list,{profile},{region})\""
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,ec2) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call vpc-list,{profile},{region})\""
 
 ################################################################################
 # VPC Subnet一覧
@@ -92,7 +92,7 @@ define vpc-subnet-list
 endef
 .PHONY: vpc-subnet-list
 vpc-subnet-list: profiles ec2-regions
-	$(call profiles) | xargs -I {profile} bash -c "$(call ec2-regions) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call vpc-subnet-list,{profile},{region})\""
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,ec2) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call vpc-subnet-list,{profile},{region})\""
 
 ################################################################################
 # EC2 一覧
@@ -101,12 +101,12 @@ vpc-subnet-list: profiles ec2-regions
 # $(2)：region名
 define ec2-list
 	export AWS_PAGER='' \
-		&& aws ec2 describe-instances --query 'Reservations[].Instances[].{InstanceType: InstanceType, PublicIp: PublicIpAddress, Tags: Tags}' --profile $(1) --region $(2) \
+		&& aws ec2 describe-instances --query 'Reservations[].Instances[].{InstanceType: InstanceType, PublicIp: PublicIpAddress, IamInstanceProfile: IamInstanceProfile.Arn, Tags: Tags}' --profile $(1) --region $(2) \
 			| jq --raw-output --compact-output '.[]'
 endef
 .PHONY: ec2-list
 ec2-list: profiles ec2-regions
-	$(call profiles) | xargs -I {profile} bash -c "$(call ec2-regions) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call ec2-list,{profile},{region})\""
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,ec2) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call ec2-list,{profile},{region})\""
 
 ################################################################################
 # S3 一覧
