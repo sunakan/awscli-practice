@@ -58,6 +58,7 @@ endef
 ################################################################################
 # EC2 region一覧（テキストに吐き出す（もし不要な部分があれば、自分で削っていく））
 ################################################################################
+.PHONY: ec2-regions
 ec2-regions: profiles
 	$(call service-regions,ec2) \
 		|| ( \
@@ -123,6 +124,7 @@ s3-list: profiles
 ################################################################################
 # RDS region一覧
 ################################################################################
+.PHONY: rds-regions
 rds-regions:
 	$(call service-regions,rds) || cp ${SERVICE_REGIONS_PATH}/rds-regions.all ${SERVICE_REGIONS_PATH}/rds-regions
 
@@ -149,12 +151,14 @@ define route53-list
 		&& aws route53 list-hosted-zones --query 'HostedZones[].Name' --profile $(1) \
 			| jq --raw-output --compact-output '.'
 endef
+.PHONY: route53-list
 route53-list: profiles
 	$(call profiles) | xargs -I {profile} bash -c "echo ===[{profile}] && $(call route53-list,{profile})"
 
 ################################################################################
 # LB region一覧
 ################################################################################
+.PHONY: lb-regions
 lb-regions:
 	$(call service-regions,lb) || cp ${SERVICE_REGIONS_PATH}/lb-regions.all ${SERVICE_REGIONS_PATH}/lb-regions
 
@@ -168,24 +172,74 @@ define lb-list
 		&& aws elbv2 describe-load-balancers --query 'LoadBalancers[].{Name: LoadBalancerName, Type: Type, Scheme: Scheme, SubnetIds: [AvailabilityZones[].SubnetId]}' --profile $(1) --region $(2) \
 			| jq --raw-output --compact-output '.[]'
 endef
+.PHONY: lb-list
 lb-list: profiles lb-regions
 	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,lb) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call lb-list,{profile},{region})\""
 
 ################################################################################
+# Lambda region一覧
+################################################################################
+.PHONY: lambda-regions
+lambda-regions:
+	$(call service-regions,lambda) || cp ${SERVICE_REGIONS_PATH}/lambda-regions.all ${SERVICE_REGIONS_PATH}/lambda-regions
+
+################################################################################
 # Lambda 一覧
 ################################################################################
+# $(1)：profile名
+# $(2)：region名
+define lambda-list
+	export AWS_PAGER='' \
+		&& aws lambda list-functions --query 'Functions[].[FunctionName,Handler,Runtime,MemorySize]' --output table --profile $(1) --region $(2)
+endef
+.PHONY: lambda-list
+lambda-list: profiles lambda-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,lambda) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call lambda-list,{profile},{region})\""
+
+################################################################################
+# SQS region一覧
+################################################################################
+.PHONY: sqs-regions
+sqs-regions:
+	$(call service-regions,sqs) || cp ${SERVICE_REGIONS_PATH}/sqs-regions.all ${SERVICE_REGIONS_PATH}/sqs-regions
 
 ################################################################################
 # SQS 一覧
 ################################################################################
+# $(1)：profile名
+# $(2)：region名
+define sqs-list
+	export AWS_PAGER='' \
+		&& aws sqs list-queues --query 'QueueUrls' --profile $(1) --region $(2)
+endef
+.PHONY: sqs-list
+sqs-list: profiles sqs-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,sqs) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call sqs-list,{profile},{region})\""
+
+################################################################################
+# SES region一覧
+################################################################################
+.PHONY: ses-regions
+ses-regions:
+	$(call service-regions,ses) || cp ${SERVICE_REGIONS_PATH}/ses-regions.all ${SERVICE_REGIONS_PATH}/ses-regions
 
 ################################################################################
 # SES 一覧
 ################################################################################
+# $(1)：profile名
+# $(2)：region名
+define ses-list
+	export AWS_PAGER='' \
+		&& aws ses list-identities --query 'Identities' --profile $(1) --region $(2)
+endef
+.PHONY: ses-list
+ses-list: profiles ses-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,ses) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call ses-list,{profile},{region})\""
 
 ################################################################################
 # Logs region一覧
 ################################################################################
+.PHONY: log-regions
 log-regions:
 	$(call service-regions,logs) || cp ${SERVICE_REGIONS_PATH}/logs-regions.all ${SERVICE_REGIONS_PATH}/logs-regions
 
@@ -199,21 +253,73 @@ define log-groups
 		&& aws logs describe-log-groups --query 'logGroups[].{Name: logGroupName, metricFilterCount: metricFilterCount, storedBytes: storedBytes}' --profile $(1) --region $(2) \
 			| jq --raw-output --compact-output '.[]'
 endef
+.PHONY: log-groups
 log-groups: profiles log-regions
 	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,logs) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call log-groups,{profile},{region})\""
 
 ################################################################################
-# KMS 一覧
+# KMS region一覧
 ################################################################################
+.PHONY: kms-regions
+kms-regions:
+	$(call service-regions,kms) || cp ${SERVICE_REGIONS_PATH}/kms-regions.all ${SERVICE_REGIONS_PATH}/kms-regions
 
 ################################################################################
-# SSH key 一覧
+# KMS 一覧
 ################################################################################
+# $(1)：profile名
+# $(2)：region名
+define kms-list
+	export AWS_PAGER='' \
+		&& aws kms list-keys --query 'Keys[].KeyId' --profile $(1) --region $(2) \
+			| jq --raw-output --compact-output '.[]' \
+			| xargs -I {key-id} bash -c 'aws kms list-grants --query 'Grants[].Name' --key-id {key-id} --profile $(1) --region $(2) | jq --raw-output --compact-output '.[]''
+endef
+.PHONY: kms-list
+kms-list: profiles kms-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,kms) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call kms-list,{profile},{region})\""
+
+################################################################################
+# SSH keypair 一覧
+################################################################################
+# $(1)：profile名
+# $(2)：region名
+define key-pairs
+	export AWS_PAGER='' \
+		&& aws ec2 describe-key-pairs --query 'KeyPairs[].KeyName' --profile $(1) --region $(2) \
+			| jq --raw-output --compact-output '.[]'
+endef
+.PHONY: key-pairs
+key-pairs: profiles ec2-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,ec2) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call key-pairs,{profile},{region})\""
 
 ################################################################################
 # Cost Explorer 一覧
 ################################################################################
 
+
+################################################################################
+# 上記全て
+################################################################################
+.PHONY: lists
+lists:
+	make check
+	make iam-users
+	make iam-roles
+	make vpc-list
+	make vpc-subnet-list
+	make ec2-list
+	make s3-list
+	make rds-regions
+	make rds-list
+	make route53-list
+	make lb-list
+	make lambda-list
+	make sqs-list
+	make ses-list
+	make log-groups
+	make kms-list
+	make key-pairs
 
 .PHONY: clean
 clean:
