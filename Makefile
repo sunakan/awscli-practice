@@ -258,6 +258,21 @@ log-groups: profiles log-regions
 	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,logs) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call log-groups,{profile},{region})\""
 
 ################################################################################
+# 各Log groupの最新のログストリーム一覧
+################################################################################
+# $(1)：profile名
+# $(2)：region名
+define log-latest-streams
+	$(call log-groups,$(1),$(2)) \
+		| jq --raw-output '.Name' \
+		| xargs -I {log-group} aws logs describe-log-streams --log-group-name '{log-group}' --query 'logStreams' --order-by LastEventTime --profile $(1) --region $(2) \
+		| jq --raw-output --compact-output 'sort_by(.latestEventTimestamp) | reverse | .[0] | {arn: .arn, logStreamName: .logStreamName, storedBytes: .storedBytes}'
+endef
+.PHONY: log-latest-streams
+log-latest-streams:
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,logs) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call log-latest-streams,{profile},{region})\""
+
+################################################################################
 # KMS region一覧
 ################################################################################
 .PHONY: kms-regions
