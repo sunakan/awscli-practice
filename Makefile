@@ -190,7 +190,8 @@ lambda-regions:
 # $(2)：region名
 define lambda-list
 	export AWS_PAGER='' \
-		&& aws lambda list-functions --query 'Functions[].[FunctionName,Handler,Runtime,MemorySize]' --output table --profile $(1) --region $(2)
+		&& aws lambda list-functions --query 'Functions[].{FunctionName: FunctionName, Handler: Handler, Runtime: Runtime, VpcId: VpcConfig.VpcId, Environments: Environment.Variables}' --profile $(1) --region $(2) \
+			| jq --raw-output --compact-output '.[]'
 endef
 .PHONY: lambda-list
 lambda-list: profiles lambda-regions
@@ -235,6 +236,25 @@ endef
 .PHONY: ses-list
 ses-list: profiles ses-regions
 	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,ses) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call ses-list,{profile},{region})\""
+
+################################################################################
+# SNS region一覧
+################################################################################
+.PHONY: sns-regions
+sns-regions:
+	$(call service-regions,sns) || cp ${SERVICE_REGIONS_PATH}/sns-regions.all ${SERVICE_REGIONS_PATH}/sns-regions
+
+################################################################################
+# SNS 一覧
+################################################################################
+define sns-list
+	export AWS_PAGER='' \
+		&& aws sns list-topics --query 'Topics' --profile $(1) --region $(2) \
+			| jq --raw-output --compact-output '.[]'
+endef
+.PHONY: sns-list
+sns-list: profiles sns-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,sns) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call sns-list,{profile},{region})\""
 
 ################################################################################
 # Logs region一覧
@@ -309,9 +329,33 @@ key-pairs: profiles ec2-regions
 	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,ec2) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call key-pairs,{profile},{region})\""
 
 ################################################################################
+# Certificate
+################################################################################
+
+################################################################################
 # Cost Explorer 一覧
 ################################################################################
 
+################################################################################
+# Certificate （SSL証明書） region一覧
+################################################################################
+.PHONY: acm-regions
+acm-regions:
+	$(call service-regions,acm) || cp ${SERVICE_REGIONS_PATH}/acm-regions.all ${SERVICE_REGIONS_PATH}/acm-regions
+
+################################################################################
+# Certificate （SSL証明書） 一覧
+################################################################################
+# $(1)：profile名
+# $(2)：region名
+define acm-list
+	export AWS_PAGER='' \
+		&& aws acm list-certificates --query 'CertificateSummaryList' --profile $(1) --region $(2) \
+			| jq --raw-output --compact '.[]'
+endef
+.PHONY: acm-list
+acm-list: profiles acm-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,acm) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call acm-list,{profile},{region})\""
 
 ################################################################################
 # 上記全て
