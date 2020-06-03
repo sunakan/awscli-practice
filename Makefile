@@ -329,14 +329,6 @@ key-pairs: profiles ec2-regions
 	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,ec2) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call key-pairs,{profile},{region})\""
 
 ################################################################################
-# Certificate
-################################################################################
-
-################################################################################
-# Cost Explorer 一覧
-################################################################################
-
-################################################################################
 # Certificate （SSL証明書） region一覧
 ################################################################################
 .PHONY: acm-regions
@@ -351,11 +343,32 @@ acm-regions:
 define acm-list
 	export AWS_PAGER='' \
 		&& aws acm list-certificates --query 'CertificateSummaryList' --profile $(1) --region $(2) \
-			| jq --raw-output --compact '.[]'
+			| jq --raw-output --compact-output '.[]'
 endef
 .PHONY: acm-list
 acm-list: profiles acm-regions
 	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,acm) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call acm-list,{profile},{region})\""
+
+################################################################################
+# CloudWatch region一覧
+################################################################################
+.PHONY: cloudwatch-regions
+cloudwatch-regions:
+	$(call service-regions,cloudwatch) || cp ${SERVICE_REGIONS_PATH}/cloudwatch-regions.all ${SERVICE_REGIONS_PATH}/cloudwatch-regions
+
+################################################################################
+# CloudWatch Alarm一覧
+################################################################################
+# $(1)：profile名
+# $(2)：region名
+define alarm-list
+	export AWS_PAGER='' \
+		&& aws cloudwatch describe-alarms --query 'MetricAlarms[].{AlarmName: AlarmName, AlarmActions: AlarmActions}' --profile $(1) --region $(2) \
+			| jq --raw-output --compact-output '.[]'
+endef
+.PHONY: alarm-list
+alarm-list: profiles cloudwatch-regions
+	$(call profiles) | xargs -I {profile} bash -c "$(call service-regions,cloudwatch) | xargs -I {region} bash -c \"echo ===[{profile}][{region}] && $(call alarm-list,{profile},{region})\""
 
 ################################################################################
 # 上記全て
